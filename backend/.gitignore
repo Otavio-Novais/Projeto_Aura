@@ -1,0 +1,22 @@
+# ========================
+# PYTHON / DJANGO
+# ========================
+# Ignora os arquivos de cache e compilados
+__pycache__/
+*.pyc
+
+# Ignora o ambiente virtual (O Peso)
+venv/
+env/
+
+# Ignora o banco de dados local (O Segredo/Lixo)
+db.sqlite3
+
+# Ignora arquivos de variáveis de ambiente (Senhas locais)
+.env
+
+# ========================
+# SISTEMAS OPERACIONAIS
+# ========================
+.DS_Store
+Thumbs.db
