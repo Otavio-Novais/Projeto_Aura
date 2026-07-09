@@ -1,124 +1,148 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
-import { apiGet, apiPost, apiPut, apiDelete } from '../api'
-import { useToast } from '../contexts/useToast'
-import type { Falta, Materia } from '../types'
-import Modal from '../components/Modal'
-import ConfirmDialog from '../components/ConfirmDialog'
-import Spinner from '../components/Spinner'
-import EmptyState from '../components/EmptyState'
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { apiGet, apiPost, apiPut, apiDelete } from '../api';
+import { useToast } from '../contexts/useToast';
+import type { Falta, Materia, PaginatedResponse } from '../types';
+import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import Spinner from '../components/Spinner';
+import EmptyState from '../components/EmptyState';
+import PaginationBar from '../components/PaginationBar';
 
 interface FaltaForm {
-  materia: number | ''
-  quantidade: number
+  materia: number | '';
+  quantidade: number;
 }
 
-const emptyForm: FaltaForm = { materia: '', quantidade: 1 }
+const emptyForm: FaltaForm = { materia: '', quantidade: 1 };
 
 export default function FaltasPage() {
-  const toast = useToast()
-  const [faltas, setFaltas] = useState<Falta[]>([])
-  const [materias, setMaterias] = useState<Materia[]>([])
-  const [selectedMateriaId, setSelectedMateriaId] = useState<number | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const toast = useToast();
+  const [faltas, setFaltas] = useState<Falta[]>([]);
+  const [materias, setMaterias] = useState<Materia[]>([]);
+  const [selectedMateriaId, setSelectedMateriaId] = useState<number | null>(
+    null
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<FaltaForm>(emptyForm)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
-  const [deleteTarget, setDeleteTarget] = useState<Falta | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<FaltaForm>(emptyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Falta | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const getMateriaNome = (id: number) =>
-    materias.find((m) => m.id === id)?.nome ?? `#${id}`
+    materias.find((m) => m.id === id)?.nome ?? `#${id}`;
 
   const loadMaterias = useCallback(async () => {
     try {
-      const m = await apiGet<Materia[]>('/materias')
-      setMaterias(m)
+      const m = await apiGet<PaginatedResponse<Materia>>(
+        '/materias?page=1&page_size=9999'
+      );
+      setMaterias(m.items);
     } catch {
-      // silent
+      /* silent */
     }
-  }, [])
+  }, []);
 
-  const loadFaltas = useCallback(async (materiaId: number) => {
-    setLoading(true)
-    setError(null)
+  const loadFaltas = useCallback(async (materiaId: number, pg: number) => {
+    setLoading(true);
+    setError(null);
     try {
-      const data = await apiGet<Falta[]>(`/materias/${materiaId}/faltas`)
-      setFaltas(data)
+      const data = await apiGet<PaginatedResponse<Falta>>(
+        `/materias/${materiaId}/faltas?page=${pg}&page_size=20&ordering=-data_entrada`
+      );
+      setFaltas(data.items);
+      setTotalCount(data.count);
+      setTotalPages(Math.max(1, Math.ceil(data.count / 20)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar')
+      setError(err instanceof Error ? err.message : 'Erro ao carregar');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    loadMaterias()
-  }, [loadMaterias])
+    loadMaterias();
+  }, [loadMaterias]);
 
   useEffect(() => {
+    setPage(1);
     if (selectedMateriaId) {
-      loadFaltas(selectedMateriaId)
+      loadFaltas(selectedMateriaId, 1);
     } else {
-      setFaltas([])
-      setLoading(false)
+      setFaltas([]);
+      setLoading(false);
     }
-  }, [selectedMateriaId, loadFaltas])
+  }, [selectedMateriaId, loadFaltas]);
+
+  function handlePageChange(pg: number) {
+    setPage(pg);
+    if (selectedMateriaId) loadFaltas(selectedMateriaId, pg);
+  }
 
   function openCreate() {
-    setForm({ materia: selectedMateriaId || '', quantidade: 1 })
-    setEditingId(null)
-    setModalOpen(true)
+    setForm({ materia: selectedMateriaId || '', quantidade: 1 });
+    setEditingId(null);
+    setModalOpen(true);
   }
 
   function openEdit(falta: Falta) {
-    setForm({ materia: falta.materia, quantidade: falta.quantidade })
-    setEditingId(falta.id)
-    setModalOpen(true)
+    setForm({ materia: falta.materia, quantidade: falta.quantidade });
+    setEditingId(falta.id);
+    setModalOpen(true);
   }
 
   async function handleSave(e: FormEvent) {
-    e.preventDefault()
-    if (!form.materia) return
-    setSaving(true)
+    e.preventDefault();
+    if (!form.materia) return;
+    setSaving(true);
     try {
-      const materiaId = Number(form.materia)
-      const payload = { materia: materiaId }
+      const materiaId = Number(form.materia);
+      const payload = { materia: materiaId, quantidade: form.quantidade };
       if (editingId) {
-        await apiPut<Falta>(`/faltas/${editingId}`, payload)
-        toast.addToast('Falta atualizada com sucesso', 'success')
+        await apiPut<Falta>(`/faltas/${editingId}`, payload);
+        toast.addToast('Falta atualizada com sucesso', 'success');
       } else {
-        await apiPost<Falta>(`/materias/${materiaId}/faltas`, payload)
-        toast.addToast('Falta registrada com sucesso', 'success')
+        await apiPost<Falta>(`/materias/${materiaId}/faltas`, payload);
+        toast.addToast('Falta registrada com sucesso', 'success');
       }
-      setModalOpen(false)
-      if (materiaId === selectedMateriaId) {
-        await loadFaltas(materiaId)
+      setModalOpen(false);
+      if (materiaId === selectedMateriaId) loadFaltas(materiaId, page);
+      else {
+        setSelectedMateriaId(materiaId);
+        setPage(1);
       }
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao salvar',
+        'error'
+      );
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   async function handleDelete() {
-    if (!deleteTarget) return
-    setDeleting(true)
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await apiDelete(`/faltas/${deleteTarget.id}`)
-      setDeleteTarget(null)
-      toast.addToast('Falta excluída com sucesso', 'success')
-      if (selectedMateriaId) {
-        await loadFaltas(selectedMateriaId)
-      }
+      await apiDelete(`/faltas/${deleteTarget.id}`);
+      setDeleteTarget(null);
+      toast.addToast('Falta excluída com sucesso', 'success');
+      if (selectedMateriaId) loadFaltas(selectedMateriaId, page);
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao excluir',
+        'error'
+      );
     } finally {
-      setDeleting(false)
+      setDeleting(false);
     }
   }
 
@@ -143,9 +167,7 @@ export default function FaltasPage() {
         <select
           value={selectedMateriaId ?? ''}
           onChange={(e) =>
-            setSelectedMateriaId(
-              e.target.value ? Number(e.target.value) : null,
-            )
+            setSelectedMateriaId(e.target.value ? Number(e.target.value) : null)
           }
           className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-purple-500 transition-colors w-full max-w-xs"
         >
@@ -165,7 +187,7 @@ export default function FaltasPage() {
       ) : error ? (
         <p className="text-red-400">{error}</p>
       ) : faltas.length === 0 ? (
-        <EmptyState message="Nenhuma falta registrada para esta matéria." />
+        <EmptyState message="Nenhuma falta registrada." />
       ) : (
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
           <table className="w-full">
@@ -216,6 +238,14 @@ export default function FaltasPage() {
               ))}
             </tbody>
           </table>
+          <div className="px-6 py-3">
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              onPageChange={handlePageChange}
+            />
+          </div>
         </div>
       )}
 
@@ -235,7 +265,7 @@ export default function FaltasPage() {
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-purple-500 transition-colors"
               required
             >
-              <option value="">Selecione uma matéria</option>
+              <option value="">Selecione</option>
               {materias.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.nome}
@@ -273,9 +303,9 @@ export default function FaltasPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         title="Excluir Falta"
-        message="Tem certeza que deseja excluir este registro de falta?"
+        message="Tem certeza?"
         loading={deleting}
       />
     </div>
-  )
+  );
 }

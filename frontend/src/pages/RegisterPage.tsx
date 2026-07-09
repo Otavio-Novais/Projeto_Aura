@@ -1,37 +1,37 @@
-import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/useAuth'
+import { useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/useAuth';
 
 export default function RegisterPage() {
-  const { register } = useAuth()
-  const navigate = useNavigate()
-  const [username, setUsername] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const { register } = useAuth();
+  const navigate = useNavigate();
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
 
     if (password !== confirmPassword) {
-      setError('As senhas não conferem')
-      return
+      setError('As senhas não conferem');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
-      await register(username, password, email || undefined)
-      navigate('/login', { state: { registered: true } })
+      await register(username, password, email || undefined);
+      navigate('/login', { state: { registered: true } });
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Erro ao criar conta'
-      setError(message)
+        err instanceof Error ? err.message : 'Erro ao criar conta';
+      setError(message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -68,10 +68,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm text-gray-400 mb-1"
-            >
+            <label htmlFor="email" className="block text-sm text-gray-400 mb-1">
               Email (opcional)
             </label>
             <input
@@ -141,5 +138,5 @@ export default function RegisterPage() {
         </form>
       </div>
     </div>
-  )
+  );
 }

@@ -8,14 +8,48 @@ from .routers.avaliacoes import router as avaliacoes_router
 from .routers.lembretes import router as lembretes_router
 from .routers.tecnicas_estudo import router as tecnicas_estudo_router
 
-
+from django.db import IntegrityError
+from django.core.exceptions import ValidationError
 from ninja import NinjaAPI
+from ninja.errors import HttpError
+from typing import Any
 
 api = NinjaAPI(
     title="API de Gestão de Estudos",
     description="API RESTful modularizada, segura e escalável.",
     version="1.0.0"
 )
+
+
+@api.exception_handler(IntegrityError)
+def integrity_error_handler(request: Any, exc: IntegrityError) -> Any:
+    message = str(exc)
+    if "UNIQUE constraint" in message:
+        message = "Já existe um registro com esses dados"
+    return api.create_response(
+        request,
+        {"detail": message},
+        status=400,
+    )
+
+
+@api.exception_handler(ValidationError)
+def validation_error_handler(request: Any, exc: ValidationError) -> Any:
+    return api.create_response(
+        request,
+        {"detail": str(exc)},
+        status=400,
+    )
+
+
+@api.exception_handler(Exception)
+def generic_error_handler(request: Any, exc: Exception) -> Any:
+    return api.create_response(
+        request,
+        {"detail": "Erro interno do servidor"},
+        status=500,
+    )
+
 
 api.add_router("/auth", auth_router)
 api.add_router("/cursos", cursos_router)

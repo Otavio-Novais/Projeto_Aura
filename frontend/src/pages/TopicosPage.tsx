@@ -1,22 +1,31 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
-import { apiGet, apiPost, apiPut, apiDelete } from '../api'
-import { useToast } from '../contexts/useToast'
-import type { Topico, Materia, TecnicaEstudo } from '../types'
-import Modal from '../components/Modal'
-import ConfirmDialog from '../components/ConfirmDialog'
-import Spinner from '../components/Spinner'
-import EmptyState from '../components/EmptyState'
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { apiGet, apiPost, apiPut, apiDelete } from '../api';
+import { useToast } from '../contexts/useToast';
+import { useApiList } from '../hooks/useApiList';
+import type {
+  Topico,
+  Materia,
+  TecnicaEstudo,
+  PaginatedResponse,
+} from '../types';
+import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import Spinner from '../components/Spinner';
+import EmptyState from '../components/EmptyState';
+import SearchInput from '../components/SearchInput';
+import SortableTh from '../components/SortableTh';
+import PaginationBar from '../components/PaginationBar';
 
-const IMPORTANCIAS = ['Alta', 'Media', 'Baixa'] as const
+const IMPORTANCIAS = ['Alta', 'Media', 'Baixa'] as const;
 
 interface TopicoForm {
-  nome: string
-  materia_id: number | ''
-  tecnica_estudo_id: number | ''
-  data_estimada: string
-  data_esperada: string
-  estudou: boolean
-  importancia: string
+  nome: string;
+  materia_id: number | '';
+  tecnica_estudo_id: number | '';
+  data_estimada: string;
+  data_esperada: string;
+  estudou: boolean;
+  importancia: string;
 }
 
 const emptyForm: TopicoForm = {
@@ -27,57 +36,63 @@ const emptyForm: TopicoForm = {
   data_esperada: '',
   estudou: false,
   importancia: 'Media',
-}
+};
 
 export default function TopicosPage() {
-  const toast = useToast()
-  const [topicos, setTopicos] = useState<Topico[]>([])
-  const [materias, setMaterias] = useState<Materia[]>([])
-  const [tecnicas, setTecnicas] = useState<TecnicaEstudo[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const toast = useToast();
+  const {
+    items,
+    loading,
+    error,
+    search,
+    page,
+    totalPages,
+    totalCount,
+    ordering,
+    setSearch,
+    setPage,
+    setOrdering,
+    reload,
+  } = useApiList<Topico>('/topicos', { initialOrdering: 'nome' });
 
-  const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<TopicoForm>(emptyForm)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [materias, setMaterias] = useState<Materia[]>([]);
+  const [tecnicas, setTecnicas] = useState<TecnicaEstudo[]>([]);
 
-  const [deleteTarget, setDeleteTarget] = useState<Topico | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<TopicoForm>(emptyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Topico | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const getMateriaNome = (id: number) =>
-    materias.find((m) => m.id === id)?.nome ?? `#${id}`
-
+    materias.find((m) => m.id === id)?.nome ?? `#${id}`;
   const getTecnicaNome = (id: number) =>
-    tecnicas.find((t) => t.id === id)?.nome ?? `#${id}`
+    tecnicas.find((t) => t.id === id)?.nome ?? `#${id}`;
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+  const loadRefs = useCallback(async () => {
     try {
-      const [top, mat, tec] = await Promise.all([
-        apiGet<Topico[]>('/topicos'),
-        apiGet<Materia[]>('/materias'),
-        apiGet<TecnicaEstudo[]>('/tecnicas-estudo'),
-      ])
-      setTopicos(top)
-      setMaterias(mat)
-      setTecnicas(tec)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar')
-    } finally {
-      setLoading(false)
+      const [mat, tec] = await Promise.all([
+        apiGet<PaginatedResponse<Materia>>('/materias?page=1&page_size=9999'),
+        apiGet<PaginatedResponse<TecnicaEstudo>>(
+          '/tecnicas-estudo?page=1&page_size=9999'
+        ),
+      ]);
+      setMaterias(mat.items);
+      setTecnicas(tec.items);
+    } catch {
+      /* silent */
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    load()
-  }, [load])
+    loadRefs();
+  }, [loadRefs]);
 
   function openCreate() {
-    setForm(emptyForm)
-    setEditingId(null)
-    setModalOpen(true)
+    setForm(emptyForm);
+    setEditingId(null);
+    setModalOpen(true);
   }
 
   function openEdit(t: Topico) {
@@ -89,14 +104,14 @@ export default function TopicosPage() {
       data_esperada: t.data_esperada ?? '',
       estudou: t.estudou,
       importancia: t.importancia,
-    })
-    setEditingId(t.id)
-    setModalOpen(true)
+    });
+    setEditingId(t.id);
+    setModalOpen(true);
   }
 
   async function handleSave(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault();
+    setSaving(true);
     try {
       const payload = {
         nome: form.nome,
@@ -106,40 +121,43 @@ export default function TopicosPage() {
         data_esperada: form.data_esperada || null,
         estudou: form.estudou,
         importancia: form.importancia,
-      }
+      };
       if (editingId) {
-        await apiPut<Topico>(`/topicos/${editingId}`, payload)
-        toast.addToast('Tópico atualizado com sucesso', 'success')
+        await apiPut<Topico>(`/topicos/${editingId}`, payload);
+        toast.addToast('Tópico atualizado com sucesso', 'success');
       } else {
-        await apiPost<Topico>('/topicos', payload)
-        toast.addToast('Tópico criado com sucesso', 'success')
+        await apiPost<Topico>('/topicos', payload);
+        toast.addToast('Tópico criado com sucesso', 'success');
       }
-      setModalOpen(false)
-      await load()
+      setModalOpen(false);
+      reload();
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao salvar',
+        'error'
+      );
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   async function handleDelete() {
-    if (!deleteTarget) return
-    setDeleting(true)
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await apiDelete(`/topicos/${deleteTarget.id}`)
-      setDeleteTarget(null)
-      toast.addToast('Tópico excluído com sucesso', 'success')
-      await load()
+      await apiDelete(`/topicos/${deleteTarget.id}`);
+      setDeleteTarget(null);
+      toast.addToast('Tópico excluído com sucesso', 'success');
+      reload();
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao excluir',
+        'error'
+      );
     } finally {
-      setDeleting(false)
+      setDeleting(false);
     }
   }
-
-  if (loading) return <Spinner />
-  if (error) return <p className="text-red-400">{error}</p>
 
   return (
     <div>
@@ -153,26 +171,50 @@ export default function TopicosPage() {
         </button>
       </div>
 
-      {topicos.length === 0 ? (
-        <EmptyState message="Nenhum tópico cadastrado." />
+      <div className="mb-4 max-w-sm">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar tópicos..."
+        />
+      </div>
+
+      {loading ? (
+        <Spinner />
+      ) : error ? (
+        <p className="text-red-400">{error}</p>
+      ) : items.length === 0 ? (
+        <EmptyState
+          message={
+            search ? 'Nenhum tópico encontrado.' : 'Nenhum tópico cadastrado.'
+          }
+        />
       ) : (
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-800">
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                  <SortableTh
+                    field="nome"
+                    ordering={ordering}
+                    onToggle={setOrdering}
+                  >
                     Nome
-                  </th>
+                  </SortableTh>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                     Matéria
                   </th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                     Técnica
                   </th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                  <SortableTh
+                    field="importancia"
+                    ordering={ordering}
+                    onToggle={setOrdering}
+                  >
                     Importância
-                  </th>
+                  </SortableTh>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                     Estudou
                   </th>
@@ -182,7 +224,7 @@ export default function TopicosPage() {
                 </tr>
               </thead>
               <tbody>
-                {topicos.map((t) => (
+                {items.map((t) => (
                   <tr
                     key={t.id}
                     className="border-b border-gray-800/50 hover:bg-gray-800/50"
@@ -196,13 +238,7 @@ export default function TopicosPage() {
                     </td>
                     <td className="px-6 py-3 text-sm">
                       <span
-                        className={`rounded-full px-2 py-0.5 text-xs ${
-                          t.importancia === 'Alta'
-                            ? 'bg-red-500/20 text-red-400'
-                            : t.importancia === 'Media'
-                              ? 'bg-yellow-500/20 text-yellow-400'
-                              : 'bg-gray-700 text-gray-400'
-                        }`}
+                        className={`rounded-full px-2 py-0.5 text-xs ${t.importancia === 'Alta' ? 'bg-red-500/20 text-red-400' : t.importancia === 'Media' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-700 text-gray-400'}`}
                       >
                         {t.importancia}
                       </span>
@@ -233,6 +269,14 @@ export default function TopicosPage() {
               </tbody>
             </table>
           </div>
+          <div className="px-6 py-3">
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              onPageChange={setPage}
+            />
+          </div>
         </div>
       )}
 
@@ -262,7 +306,7 @@ export default function TopicosPage() {
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-purple-500 transition-colors"
               required
             >
-              <option value="">Selecione uma matéria</option>
+              <option value="">Selecione</option>
               {materias.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.nome}
@@ -285,7 +329,7 @@ export default function TopicosPage() {
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-purple-500 transition-colors"
               required
             >
-              <option value="">Selecione uma técnica</option>
+              <option value="">Selecione</option>
               {tecnicas.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.nome}
@@ -373,5 +417,5 @@ export default function TopicosPage() {
         loading={deleting}
       />
     </div>
-  )
+  );
 }

@@ -1,10 +1,10 @@
 interface ConfirmDialogProps {
-  open: boolean
-  onClose: () => void
-  onConfirm: () => void
-  title: string
-  message: string
-  loading?: boolean
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  loading?: boolean;
 }
 
 export default function ConfirmDialog({
@@ -15,14 +15,11 @@ export default function ConfirmDialog({
   message,
   loading,
 }: ConfirmDialogProps) {
-  if (!open) return null
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/60"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div className="relative bg-gray-900 border border-gray-800 rounded-xl w-full max-w-sm mx-4">
         <div className="p-6">
           <h3 className="text-lg font-semibold mb-2">{title}</h3>
@@ -47,5 +44,5 @@ export default function ConfirmDialog({
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -68,3 +68,8 @@ export interface Lembrete {
   data_lembrete: string;
   avaliacao: number;
 }
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  count: number;
+}

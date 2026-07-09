@@ -1,50 +1,56 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { apiGet } from '../api'
-import type { Avaliacao, Lembrete, Topico, Materia } from '../types'
-import Spinner from '../components/Spinner'
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { apiGet } from '../api';
+import type {
+  Avaliacao,
+  Lembrete,
+  Topico,
+  Materia,
+  PaginatedResponse,
+} from '../types';
+import Spinner from '../components/Spinner';
 
 export default function DashboardPage() {
-  const [loading, setLoading] = useState(true)
-  const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([])
-  const [lembretes, setLembretes] = useState<Lembrete[]>([])
-  const [topicosPendentes, setTopicosPendentes] = useState<Topico[]>([])
-  const [materias, setMaterias] = useState<Materia[]>([])
-  const [counts, setCounts] = useState<Record<string, number>>({})
+  const [loading, setLoading] = useState(true);
+  const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
+  const [lembretes, setLembretes] = useState<Lembrete[]>([]);
+  const [topicosPendentes, setTopicosPendentes] = useState<Topico[]>([]);
+  const [materias, setMaterias] = useState<Materia[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     async function load() {
       try {
+        const sizeQuery = 'page=1&page_size=50';
         const [av, lem, top, mat, cursos] = await Promise.all([
-          apiGet<Avaliacao[]>('/avaliacoes'),
-          apiGet<Lembrete[]>('/lembretes'),
-          apiGet<Topico[]>('/topicos'),
-          apiGet<Materia[]>('/materias'),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          apiGet<any[]>('/cursos'),
-        ])
-        setAvaliacoes(av)
-        setLembretes(lem)
-        setTopicosPendentes(top.filter((t) => !t.estudou))
-        setMaterias(mat)
+          apiGet<PaginatedResponse<Avaliacao>>(`/avaliacoes?${sizeQuery}`),
+          apiGet<PaginatedResponse<Lembrete>>(`/lembretes?${sizeQuery}`),
+          apiGet<PaginatedResponse<Topico>>(`/topicos?${sizeQuery}`),
+          apiGet<PaginatedResponse<Materia>>(`/materias?${sizeQuery}`),
+          apiGet<PaginatedResponse<{ id: number }>>(`/cursos?${sizeQuery}`),
+        ]);
+        setAvaliacoes(av.items);
+        setLembretes(lem.items);
+        setTopicosPendentes(top.items.filter((t) => !t.estudou));
+        setMaterias(mat.items);
         setCounts({
-          cursos: cursos.length,
-          materias: mat.length,
-          avaliacoes: av.length,
-          topicos: top.length,
-          lembretes: lem.length,
-        })
+          cursos: cursos.count,
+          materias: mat.count,
+          avaliacoes: av.count,
+          topicos: top.count,
+          lembretes: lem.count,
+        });
       } catch {
         // se falhar, mostra vazio
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
-    load()
-  }, [])
+    load();
+  }, []);
 
   function getMateriaNome(id: number) {
-    return materias.find((m) => m.id === id)?.nome ?? `Matéria #${id}`
+    return materias.find((m) => m.id === id)?.nome ?? `Matéria #${id}`;
   }
 
   const cards = [
@@ -53,26 +59,26 @@ export default function DashboardPage() {
     { label: 'Avaliações', value: counts.avaliacoes, color: 'text-yellow-400' },
     { label: 'Tópicos', value: counts.topicos, color: 'text-green-400' },
     { label: 'Lembretes', value: counts.lembretes, color: 'text-red-400' },
-  ]
+  ];
 
-  if (loading) return <Spinner />
+  if (loading) return <Spinner />;
 
   const proximasAvaliacoes = avaliacoes
     .filter((a) => a.data_avaliacao)
     .sort(
       (a, b) =>
         new Date(a.data_avaliacao!).getTime() -
-        new Date(b.data_avaliacao!).getTime(),
+        new Date(b.data_avaliacao!).getTime()
     )
-    .slice(0, 5)
+    .slice(0, 5);
 
   const proximosLembretes = [...lembretes]
     .sort(
       (a, b) =>
         new Date(a.data_lembrete).getTime() -
-        new Date(b.data_lembrete).getTime(),
+        new Date(b.data_lembrete).getTime()
     )
-    .slice(0, 5)
+    .slice(0, 5);
 
   return (
     <div>
@@ -85,9 +91,7 @@ export default function DashboardPage() {
             className="bg-gray-900 border border-gray-800 rounded-xl p-4"
           >
             <p className="text-sm text-gray-500 mb-1">{c.label}</p>
-            <p className={`text-2xl font-bold ${c.color}`}>
-              {c.value ?? '—'}
-            </p>
+            <p className={`text-2xl font-bold ${c.color}`}>{c.value ?? '—'}</p>
           </div>
         ))}
       </div>
@@ -130,9 +134,7 @@ export default function DashboardPage() {
         {/* Tópicos pendentes */}
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-green-400">
-              Tópicos Pendentes
-            </h3>
+            <h3 className="font-semibold text-green-400">Tópicos Pendentes</h3>
             <Link
               to="/topicos"
               className="text-xs text-gray-500 hover:text-purple-400 transition-colors"
@@ -174,9 +176,7 @@ export default function DashboardPage() {
         {/* Próximos lembretes */}
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-red-400">
-              Próximos Lembretes
-            </h3>
+            <h3 className="font-semibold text-red-400">Próximos Lembretes</h3>
             <Link
               to="/lembretes"
               className="text-xs text-gray-500 hover:text-purple-400 transition-colors"
@@ -206,5 +206,5 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

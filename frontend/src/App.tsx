@@ -1,20 +1,20 @@
-import { Routes, Route, Outlet } from 'react-router-dom'
-import { AuthProvider } from './contexts/AuthContext'
-import { ToastProvider } from './contexts/ToastContext'
-import ProtectedRoute from './components/ProtectedRoute'
-import { ErrorBoundary } from './components/ErrorBoundary'
-import Layout from './components/Layout'
-import LoginPage from './pages/LoginPage'
-import RegisterPage from './pages/RegisterPage'
-import DashboardPage from './pages/DashboardPage'
-import CursosPage from './pages/CursosPage'
-import DocentesPage from './pages/DocentesPage'
-import MateriasPage from './pages/MateriasPage'
-import AvaliacoesPage from './pages/AvaliacoesPage'
-import TopicosPage from './pages/TopicosPage'
-import FaltasPage from './pages/FaltasPage'
-import LembretesPage from './pages/LembretesPage'
-import TecnicasEstudoPage from './pages/TecnicasEstudoPage'
+import { Routes, Route, Outlet } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import Layout from './components/Layout';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import DashboardPage from './pages/DashboardPage';
+import CursosPage from './pages/CursosPage';
+import DocentesPage from './pages/DocentesPage';
+import MateriasPage from './pages/MateriasPage';
+import AvaliacoesPage from './pages/AvaliacoesPage';
+import TopicosPage from './pages/TopicosPage';
+import FaltasPage from './pages/FaltasPage';
+import LembretesPage from './pages/LembretesPage';
+import TecnicasEstudoPage from './pages/TecnicasEstudoPage';
 
 function AppLayout() {
   return (
@@ -25,7 +25,7 @@ function AppLayout() {
         </ErrorBoundary>
       </Layout>
     </ProtectedRoute>
-  )
+  );
 }
 
 export default function App() {
@@ -50,5 +50,5 @@ export default function App() {
         </Routes>
       </ToastProvider>
     </AuthProvider>
-  )
+  );
 }

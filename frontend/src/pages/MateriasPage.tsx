@@ -1,69 +1,91 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
-import { apiGet, apiPost, apiPut, apiDelete } from '../api'
-import { useToast } from '../contexts/useToast'
-import type { Materia, Curso, Docente } from '../types'
-import Modal from '../components/Modal'
-import ConfirmDialog from '../components/ConfirmDialog'
-import Spinner from '../components/Spinner'
-import EmptyState from '../components/EmptyState'
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { apiGet, apiPost, apiPut, apiDelete } from '../api';
+import { useToast } from '../contexts/useToast';
+import { useApiList } from '../hooks/useApiList';
+import type { Materia, Curso, Docente, PaginatedResponse } from '../types';
+import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import Spinner from '../components/Spinner';
+import EmptyState from '../components/EmptyState';
+import SearchInput from '../components/SearchInput';
+import SortableTh from '../components/SortableTh';
+import PaginationBar from '../components/PaginationBar';
+import FormField from '../components/FormField';
+import { inputClass } from '../components/inputClass';
 
 interface MateriaForm {
-  nome: string
-  curso: number | ''
-  docente: number | ''
+  nome: string;
+  curso: number | '';
+  docente: number | '';
 }
 
-const emptyForm: MateriaForm = { nome: '', curso: '', docente: '' }
+const emptyForm: MateriaForm = { nome: '', curso: '', docente: '' };
 
 export default function MateriasPage() {
-  const toast = useToast()
-  const [materias, setMaterias] = useState<Materia[]>([])
-  const [cursos, setCursos] = useState<Curso[]>([])
-  const [docentes, setDocentes] = useState<Docente[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const toast = useToast();
+  const {
+    items,
+    loading,
+    error,
+    search,
+    page,
+    totalPages,
+    totalCount,
+    ordering,
+    setSearch,
+    setPage,
+    setOrdering,
+    reload,
+  } = useApiList<Materia>('/materias', { initialOrdering: 'nome' });
 
-  const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<MateriaForm>(emptyForm)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [cursos, setCursos] = useState<Curso[]>([]);
+  const [docentes, setDocentes] = useState<Docente[]>([]);
 
-  const [deleteTarget, setDeleteTarget] = useState<Materia | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<MateriaForm>(emptyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Materia | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function validate(): boolean {
+    const e: Record<string, string> = {};
+    if (!form.nome.trim()) e.nome = 'Nome é obrigatório';
+    if (!form.curso) e.curso = 'Curso é obrigatório';
+    if (!form.docente) e.docente = 'Docente é obrigatório';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
 
   const getCursoNome = (cursoId: number) =>
-    cursos.find((c) => c.id === cursoId)?.nome ?? `Curso #${cursoId}`
+    cursos.find((c) => c.id === cursoId)?.nome ?? `#${cursoId}`;
 
   const getDocenteNome = (docenteId: number) =>
-    docentes.find((d) => d.id === docenteId)?.nome ?? `Docente #${docenteId}`
+    docentes.find((d) => d.id === docenteId)?.nome ?? `#${docenteId}`;
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+  const loadRefs = useCallback(async () => {
     try {
-      const [m, c, d] = await Promise.all([
-        apiGet<Materia[]>('/materias'),
-        apiGet<Curso[]>('/cursos'),
-        apiGet<Docente[]>('/docentes'),
-      ])
-      setMaterias(m)
-      setCursos(c)
-      setDocentes(d)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar')
-    } finally {
-      setLoading(false)
+      const [c, d] = await Promise.all([
+        apiGet<PaginatedResponse<Curso>>('/cursos?page=1&page_size=9999'),
+        apiGet<PaginatedResponse<Docente>>('/docentes?page=1&page_size=9999'),
+      ]);
+      setCursos(c.items);
+      setDocentes(d.items);
+    } catch {
+      // silent
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    load()
-  }, [load])
+    loadRefs();
+  }, [loadRefs]);
 
   function openCreate() {
-    setForm(emptyForm)
-    setEditingId(null)
-    setModalOpen(true)
+    setForm(emptyForm);
+    setErrors({});
+    setEditingId(null);
+    setModalOpen(true);
   }
 
   function openEdit(materia: Materia) {
@@ -71,49 +93,58 @@ export default function MateriasPage() {
       nome: materia.nome,
       curso: materia.curso,
       docente: materia.docente,
-    })
-    setEditingId(materia.id)
-    setModalOpen(true)
+    });
+    setErrors({});
+    setEditingId(materia.id);
+    setModalOpen(true);
   }
 
   async function handleSave(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault();
+    if (!validate()) return;
+    setSaving(true);
     try {
-      const payload = { nome: form.nome, curso: Number(form.curso), docente: Number(form.docente) }
+      const payload = {
+        nome: form.nome,
+        curso: Number(form.curso),
+        docente: Number(form.docente),
+      };
       if (editingId) {
-        await apiPut<Materia>(`/materias/${editingId}`, payload)
-        toast.addToast('Matéria atualizada com sucesso', 'success')
+        await apiPut<Materia>(`/materias/${editingId}`, payload);
+        toast.addToast('Matéria atualizada com sucesso', 'success');
       } else {
-        await apiPost<Materia>('/materias', payload)
-        toast.addToast('Matéria criada com sucesso', 'success')
+        await apiPost<Materia>('/materias', payload);
+        toast.addToast('Matéria criada com sucesso', 'success');
       }
-      setModalOpen(false)
-      await load()
+      setModalOpen(false);
+      reload();
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao salvar',
+        'error'
+      );
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   async function handleDelete() {
-    if (!deleteTarget) return
-    setDeleting(true)
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await apiDelete(`/materias/${deleteTarget.id}`)
-      setDeleteTarget(null)
-      toast.addToast('Matéria excluída com sucesso', 'success')
-      await load()
+      await apiDelete(`/materias/${deleteTarget.id}`);
+      setDeleteTarget(null);
+      toast.addToast('Matéria excluída com sucesso', 'success');
+      reload();
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao excluir',
+        'error'
+      );
     } finally {
-      setDeleting(false)
+      setDeleting(false);
     }
   }
-
-  if (loading) return <Spinner />
-  if (error) return <p className="text-red-400">{error}</p>
 
   return (
     <div>
@@ -127,16 +158,38 @@ export default function MateriasPage() {
         </button>
       </div>
 
-      {materias.length === 0 ? (
-        <EmptyState message="Nenhuma matéria cadastrada." />
+      <div className="mb-4 max-w-sm">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar matérias..."
+        />
+      </div>
+
+      {loading ? (
+        <Spinner />
+      ) : error ? (
+        <p className="text-red-400">{error}</p>
+      ) : items.length === 0 ? (
+        <EmptyState
+          message={
+            search
+              ? 'Nenhuma matéria encontrada.'
+              : 'Nenhuma matéria cadastrada.'
+          }
+        />
       ) : (
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-800">
-                <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                <SortableTh
+                  field="nome"
+                  ordering={ordering}
+                  onToggle={setOrdering}
+                >
                   Nome
-                </th>
+                </SortableTh>
                 <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                   Curso
                 </th>
@@ -149,7 +202,7 @@ export default function MateriasPage() {
               </tr>
             </thead>
             <tbody>
-              {materias.map((m) => (
+              {items.map((m) => (
                 <tr
                   key={m.id}
                   className="border-b border-gray-800/50 hover:bg-gray-800/50"
@@ -179,6 +232,14 @@ export default function MateriasPage() {
               ))}
             </tbody>
           </table>
+          <div className="px-6 py-3">
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              onPageChange={setPage}
+            />
+          </div>
         </div>
       )}
 
@@ -188,23 +249,25 @@ export default function MateriasPage() {
         title={editingId ? 'Editar Matéria' : 'Nova Matéria'}
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Nome</label>
+          <FormField label="Nome" error={errors.nome}>
             <input
               value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-purple-500 transition-colors"
-              required
+              onChange={(e) => {
+                setForm({ ...form, nome: e.target.value });
+                if (errors.nome) setErrors({});
+              }}
+              className={inputClass(errors.nome)}
               autoFocus
             />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Curso</label>
+          </FormField>
+          <FormField label="Curso" error={errors.curso}>
             <select
               value={form.curso}
-              onChange={(e) => setForm({ ...form, curso: Number(e.target.value) || '' })}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-purple-500 transition-colors"
-              required
+              onChange={(e) => {
+                setForm({ ...form, curso: Number(e.target.value) || '' });
+                if (errors.curso) setErrors({});
+              }}
+              className={inputClass(errors.curso)}
             >
               <option value="">Selecione um curso</option>
               {cursos.map((c) => (
@@ -213,14 +276,15 @@ export default function MateriasPage() {
                 </option>
               ))}
             </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Docente</label>
+          </FormField>
+          <FormField label="Docente" error={errors.docente}>
             <select
               value={form.docente}
-              onChange={(e) => setForm({ ...form, docente: Number(e.target.value) || '' })}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-purple-500 transition-colors"
-              required
+              onChange={(e) => {
+                setForm({ ...form, docente: Number(e.target.value) || '' });
+                if (errors.docente) setErrors({});
+              }}
+              className={inputClass(errors.docente)}
             >
               <option value="">Selecione um docente</option>
               {docentes.map((d) => (
@@ -229,7 +293,7 @@ export default function MateriasPage() {
                 </option>
               ))}
             </select>
-          </div>
+          </FormField>
           <button
             type="submit"
             disabled={saving}
@@ -249,5 +313,5 @@ export default function MateriasPage() {
         loading={deleting}
       />
     </div>
-  )
+  );
 }

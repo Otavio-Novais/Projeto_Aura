@@ -1,22 +1,31 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
-import { apiGet, apiPost, apiPut, apiDelete } from '../api'
-import { useToast } from '../contexts/useToast'
-import type { Avaliacao, Materia, TipoAvaliacao } from '../types'
-import Modal from '../components/Modal'
-import ConfirmDialog from '../components/ConfirmDialog'
-import Spinner from '../components/Spinner'
-import EmptyState from '../components/EmptyState'
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { apiGet, apiPost, apiPut, apiDelete } from '../api';
+import { useToast } from '../contexts/useToast';
+import { useApiList } from '../hooks/useApiList';
+import type {
+  Avaliacao,
+  Materia,
+  TipoAvaliacao,
+  PaginatedResponse,
+} from '../types';
+import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import Spinner from '../components/Spinner';
+import EmptyState from '../components/EmptyState';
+import SearchInput from '../components/SearchInput';
+import SortableTh from '../components/SortableTh';
+import PaginationBar from '../components/PaginationBar';
 
-const TIPOS: TipoAvaliacao[] = ['Prova', 'Trabalho', 'Exercicio', 'Outro']
+const TIPOS: TipoAvaliacao[] = ['Prova', 'Trabalho', 'Exercicio', 'Outro'];
 
 interface AvaliacaoForm {
-  nome: string
-  materia_id: number | ''
-  data_avaliacao: string
-  peso: number
-  tipo_avaliacao: TipoAvaliacao
-  nota_maxima: number
-  nota_obtida: number | ''
+  nome: string;
+  materia_id: number | '';
+  data_avaliacao: string;
+  peso: number;
+  tipo_avaliacao: TipoAvaliacao;
+  nota_maxima: number;
+  nota_obtida: number | '';
 }
 
 const emptyForm: AvaliacaoForm = {
@@ -27,61 +36,67 @@ const emptyForm: AvaliacaoForm = {
   tipo_avaliacao: 'Prova',
   nota_maxima: 10,
   nota_obtida: '',
-}
+};
 
 export default function AvaliacoesPage() {
-  const toast = useToast()
-  const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([])
-  const [materias, setMaterias] = useState<Materia[]>([])
-  const [cursosList, setCursosList] = useState<Record<number, string>>({})
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const toast = useToast();
+  const {
+    items,
+    loading,
+    error,
+    search,
+    page,
+    totalPages,
+    totalCount,
+    ordering,
+    setSearch,
+    setPage,
+    setOrdering,
+    reload,
+  } = useApiList<Avaliacao>('/avaliacoes', { initialOrdering: 'nome' });
 
-  const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<AvaliacaoForm>(emptyForm)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [materias, setMaterias] = useState<Materia[]>([]);
+  const [cursosList, setCursosList] = useState<Record<number, string>>({});
 
-  const [deleteTarget, setDeleteTarget] = useState<Avaliacao | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<AvaliacaoForm>(emptyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Avaliacao | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+  const loadRefs = useCallback(async () => {
     try {
-      const [av, mat, cursos] = await Promise.all([
-        apiGet<Avaliacao[]>('/avaliacoes'),
-        apiGet<Materia[]>('/materias'),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        apiGet<any[]>('/cursos'),
-      ])
-      setAvaliacoes(av)
-      setMaterias(mat)
-      const nomes: Record<number, string> = {}
-      cursos.forEach((c: { id: number; nome: string }) => {
-        nomes[c.id] = c.nome
-      })
-      setCursosList(nomes)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar')
-    } finally {
-      setLoading(false)
+      const [mat, cursos] = await Promise.all([
+        apiGet<PaginatedResponse<Materia>>('/materias?page=1&page_size=9999'),
+        apiGet<PaginatedResponse<{ id: number; nome: string }>>(
+          '/cursos?page=1&page_size=9999'
+        ),
+      ]);
+      setMaterias(mat.items);
+      const nomes: Record<number, string> = {};
+      cursos.items.forEach((c) => {
+        nomes[c.id] = c.nome;
+      });
+      setCursosList(nomes);
+    } catch {
+      /* silent */
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    load()
-  }, [load])
+    loadRefs();
+  }, [loadRefs]);
 
   function getMateriaLabel(materia: Materia) {
-    const prefix = cursosList[materia.curso]
-    return prefix ? `${prefix} — ${materia.nome}` : materia.nome
+    const p = cursosList[materia.curso];
+    return p ? `${p} — ${materia.nome}` : materia.nome;
   }
 
   function openCreate() {
-    setForm(emptyForm)
-    setEditingId(null)
-    setModalOpen(true)
+    setForm(emptyForm);
+    setEditingId(null);
+    setModalOpen(true);
   }
 
   function openEdit(av: Avaliacao) {
@@ -93,14 +108,14 @@ export default function AvaliacoesPage() {
       tipo_avaliacao: av.tipo_avaliacao,
       nota_maxima: av.nota_maxima,
       nota_obtida: av.nota_obtida ?? '',
-    })
-    setEditingId(av.id)
-    setModalOpen(true)
+    });
+    setEditingId(av.id);
+    setModalOpen(true);
   }
 
   async function handleSave(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault();
+    setSaving(true);
     try {
       const payload = {
         nome: form.nome,
@@ -110,40 +125,43 @@ export default function AvaliacoesPage() {
         tipo_avaliacao: form.tipo_avaliacao,
         nota_maxima: form.nota_maxima,
         nota_obtida: form.nota_obtida === '' ? null : Number(form.nota_obtida),
-      }
+      };
       if (editingId) {
-        await apiPut<Avaliacao>(`/avaliacoes/${editingId}`, payload)
-        toast.addToast('Avaliação atualizada com sucesso', 'success')
+        await apiPut<Avaliacao>(`/avaliacoes/${editingId}`, payload);
+        toast.addToast('Avaliação atualizada com sucesso', 'success');
       } else {
-        await apiPost<Avaliacao>('/avaliacoes', payload)
-        toast.addToast('Avaliação criada com sucesso', 'success')
+        await apiPost<Avaliacao>('/avaliacoes', payload);
+        toast.addToast('Avaliação criada com sucesso', 'success');
       }
-      setModalOpen(false)
-      await load()
+      setModalOpen(false);
+      reload();
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao salvar',
+        'error'
+      );
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   async function handleDelete() {
-    if (!deleteTarget) return
-    setDeleting(true)
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await apiDelete(`/avaliacoes/${deleteTarget.id}`)
-      setDeleteTarget(null)
-      toast.addToast('Avaliação excluída com sucesso', 'success')
-      await load()
+      await apiDelete(`/avaliacoes/${deleteTarget.id}`);
+      setDeleteTarget(null);
+      toast.addToast('Avaliação excluída com sucesso', 'success');
+      reload();
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao excluir',
+        'error'
+      );
     } finally {
-      setDeleting(false)
+      setDeleting(false);
     }
   }
-
-  if (loading) return <Spinner />
-  if (error) return <p className="text-red-400">{error}</p>
 
   return (
     <div>
@@ -157,17 +175,39 @@ export default function AvaliacoesPage() {
         </button>
       </div>
 
-      {avaliacoes.length === 0 ? (
-        <EmptyState message="Nenhuma avaliação cadastrada." />
+      <div className="mb-4 max-w-sm">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar avaliações..."
+        />
+      </div>
+
+      {loading ? (
+        <Spinner />
+      ) : error ? (
+        <p className="text-red-400">{error}</p>
+      ) : items.length === 0 ? (
+        <EmptyState
+          message={
+            search
+              ? 'Nenhuma avaliação encontrada.'
+              : 'Nenhuma avaliação cadastrada.'
+          }
+        />
       ) : (
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-800">
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                  <SortableTh
+                    field="nome"
+                    ordering={ordering}
+                    onToggle={setOrdering}
+                  >
                     Nome
-                  </th>
+                  </SortableTh>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                     Matéria
                   </th>
@@ -177,18 +217,25 @@ export default function AvaliacoesPage() {
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                     Nota
                   </th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                  <SortableTh
+                    field="data_avaliacao"
+                    ordering={ordering}
+                    onToggle={setOrdering}
+                  >
                     Data
-                  </th>
+                  </SortableTh>
                   <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                     Ações
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {avaliacoes.map((av) => {
-                  const mat = materias.find((m) => m.id === av.materia)
-                  const nota = av.nota_obtida != null ? `${av.nota_obtida}/${av.nota_maxima}` : `0/${av.nota_maxima}`
+                {items.map((av) => {
+                  const mat = materias.find((m) => m.id === av.materia);
+                  const nota =
+                    av.nota_obtida != null
+                      ? `${av.nota_obtida}/${av.nota_maxima}`
+                      : `0/${av.nota_maxima}`;
                   return (
                     <tr
                       key={av.id}
@@ -208,7 +255,9 @@ export default function AvaliacoesPage() {
                       </td>
                       <td className="px-6 py-3 text-sm text-gray-400">
                         {av.data_avaliacao
-                          ? new Date(av.data_avaliacao).toLocaleDateString('pt-BR')
+                          ? new Date(av.data_avaliacao).toLocaleDateString(
+                              'pt-BR'
+                            )
                           : '—'}
                       </td>
                       <td className="px-6 py-3 text-right">
@@ -226,10 +275,18 @@ export default function AvaliacoesPage() {
                         </button>
                       </td>
                     </tr>
-                  )
+                  );
                 })}
               </tbody>
             </table>
+          </div>
+          <div className="px-6 py-3">
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              onPageChange={setPage}
+            />
           </div>
         </div>
       )}
@@ -274,7 +331,10 @@ export default function AvaliacoesPage() {
               <select
                 value={form.tipo_avaliacao}
                 onChange={(e) =>
-                  setForm({ ...form, tipo_avaliacao: e.target.value as TipoAvaliacao })
+                  setForm({
+                    ...form,
+                    tipo_avaliacao: e.target.value as TipoAvaliacao,
+                  })
                 }
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-purple-500 transition-colors"
               >
@@ -286,9 +346,7 @@ export default function AvaliacoesPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">
-                Data
-              </label>
+              <label className="block text-sm text-gray-400 mb-1">Data</label>
               <input
                 type="date"
                 value={form.data_avaliacao}
@@ -342,7 +400,8 @@ export default function AvaliacoesPage() {
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    nota_obtida: e.target.value === '' ? '' : Number(e.target.value),
+                    nota_obtida:
+                      e.target.value === '' ? '' : Number(e.target.value),
                   })
                 }
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-purple-500 transition-colors"
@@ -368,5 +427,5 @@ export default function AvaliacoesPage() {
         loading={deleting}
       />
     </div>
-  )
+  );
 }

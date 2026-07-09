@@ -1,32 +1,30 @@
-import { useState, type FormEvent } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../contexts/useAuth'
+import { useState, type FormEvent } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/useAuth';
 
 export default function LoginPage() {
-  const { login } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const registered = (location.state as { registered?: boolean })?.registered
+  const registered = (location.state as { registered?: boolean })?.registered;
 
   async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
 
     try {
-      await login(username, password)
-      navigate('/')
+      await login(username, password);
+      navigate('/');
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Falha na autenticação',
-      )
+      setError(err instanceof Error ? err.message : 'Falha na autenticação');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -35,7 +33,9 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-purple-400">Projeto Aura</h1>
-          <p className="text-gray-500 text-sm mt-1">Faça login para continuar</p>
+          <p className="text-gray-500 text-sm mt-1">
+            Faça login para continuar
+          </p>
         </div>
 
         <form
@@ -104,5 +104,5 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
-  )
+  );
 }

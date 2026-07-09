@@ -37,6 +37,7 @@ class FaltaSchema(ModelSchema):
 
 class FaltaIn(Schema):
     materia: int  # ID da matéria
+    quantidade: int
 
 class TecnicaEstudoSchema(ModelSchema):
     class Meta:

@@ -1,27 +1,27 @@
-import { useState, useCallback, type ReactNode } from 'react'
-import { ToastContext } from './useToast'
+import { useState, useCallback, type ReactNode } from 'react';
+import { ToastContext } from './useToast';
 
 interface Toast {
-  id: number
-  message: string
-  type: 'success' | 'error'
+  id: number;
+  message: string;
+  type: 'success' | 'error';
 }
 
-let nextId = 0
+let nextId = 0;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([])
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
   const addToast = useCallback((message: string, type: Toast['type']) => {
-    const id = nextId++
-    setToasts((prev) => [...prev, { id, message, type }])
+    const id = nextId++;
+    setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id))
-    }, 4000)
-  }, [])
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  }, []);
 
   function removeToast(id: number) {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }
 
   return (
@@ -49,5 +49,5 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         }
       `}</style>
     </ToastContext.Provider>
-  )
+  );
 }

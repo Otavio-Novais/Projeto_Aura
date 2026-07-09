@@ -1,98 +1,111 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
-import { apiGet, apiPost, apiPut, apiDelete } from '../api'
-import { useToast } from '../contexts/useToast'
-import type { Docente } from '../types'
-import Modal from '../components/Modal'
-import ConfirmDialog from '../components/ConfirmDialog'
-import Spinner from '../components/Spinner'
-import EmptyState from '../components/EmptyState'
+import { useState, type FormEvent } from 'react';
+import { apiPost, apiPut, apiDelete } from '../api';
+import { useToast } from '../contexts/useToast';
+import { useApiList } from '../hooks/useApiList';
+import type { Docente } from '../types';
+import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import Spinner from '../components/Spinner';
+import EmptyState from '../components/EmptyState';
+import SearchInput from '../components/SearchInput';
+import SortableTh from '../components/SortableTh';
+import PaginationBar from '../components/PaginationBar';
+import FormField from '../components/FormField';
+import { inputClass } from '../components/inputClass';
 
 interface DocenteForm {
-  nome: string
+  nome: string;
 }
 
-const emptyForm: DocenteForm = { nome: '' }
+const emptyForm: DocenteForm = { nome: '' };
 
 export default function DocentesPage() {
-  const toast = useToast()
-  const [docentes, setDocentes] = useState<Docente[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const toast = useToast();
+  const {
+    items,
+    loading,
+    error,
+    search,
+    page,
+    totalPages,
+    totalCount,
+    ordering,
+    setSearch,
+    setPage,
+    setOrdering,
+    reload,
+  } = useApiList<Docente>('/docentes', { initialOrdering: 'nome' });
 
-  const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<DocenteForm>(emptyForm)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<DocenteForm>(emptyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Docente | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const [deleteTarget, setDeleteTarget] = useState<Docente | null>(null)
-  const [deleting, setDeleting] = useState(false)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await apiGet<Docente[]>('/docentes')
-      setDocentes(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    load()
-  }, [load])
+  function validate(): boolean {
+    const e: Record<string, string> = {};
+    if (!form.nome.trim()) e.nome = 'Nome é obrigatório';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
 
   function openCreate() {
-    setForm(emptyForm)
-    setEditingId(null)
-    setModalOpen(true)
+    setForm(emptyForm);
+    setErrors({});
+    setEditingId(null);
+    setModalOpen(true);
   }
 
   function openEdit(docente: Docente) {
-    setForm({ nome: docente.nome })
-    setEditingId(docente.id)
-    setModalOpen(true)
+    setForm({ nome: docente.nome });
+    setErrors({});
+    setEditingId(docente.id);
+    setModalOpen(true);
   }
 
   async function handleSave(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault();
+    if (!validate()) return;
+    setSaving(true);
     try {
       if (editingId) {
-        await apiPut<Docente>(`/docentes/${editingId}`, form)
-        toast.addToast('Docente atualizado com sucesso', 'success')
+        await apiPut<Docente>(`/docentes/${editingId}`, form);
+        toast.addToast('Docente atualizado com sucesso', 'success');
       } else {
-        await apiPost<Docente>('/docentes', form)
-        toast.addToast('Docente criado com sucesso', 'success')
+        await apiPost<Docente>('/docentes', form);
+        toast.addToast('Docente criado com sucesso', 'success');
       }
-      setModalOpen(false)
-      await load()
+      setModalOpen(false);
+      reload();
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao salvar',
+        'error'
+      );
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   async function handleDelete() {
-    if (!deleteTarget) return
-    setDeleting(true)
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await apiDelete(`/docentes/${deleteTarget.id}`)
-      setDeleteTarget(null)
-      toast.addToast('Docente excluído com sucesso', 'success')
-      await load()
+      await apiDelete(`/docentes/${deleteTarget.id}`);
+      setDeleteTarget(null);
+      toast.addToast('Docente excluído com sucesso', 'success');
+      reload();
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao excluir',
+        'error'
+      );
     } finally {
-      setDeleting(false)
+      setDeleting(false);
     }
   }
-
-  if (loading) return <Spinner />
-  if (error) return <p className="text-red-400">{error}</p>
 
   return (
     <div>
@@ -106,23 +119,43 @@ export default function DocentesPage() {
         </button>
       </div>
 
-      {docentes.length === 0 ? (
-        <EmptyState message="Nenhum docente cadastrado." />
+      <div className="mb-4 max-w-sm">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar docentes..."
+        />
+      </div>
+
+      {loading ? (
+        <Spinner />
+      ) : error ? (
+        <p className="text-red-400">{error}</p>
+      ) : items.length === 0 ? (
+        <EmptyState
+          message={
+            search ? 'Nenhum docente encontrado.' : 'Nenhum docente cadastrado.'
+          }
+        />
       ) : (
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-800">
-                <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                <SortableTh
+                  field="nome"
+                  ordering={ordering}
+                  onToggle={setOrdering}
+                >
                   Nome
-                </th>
+                </SortableTh>
                 <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                   Ações
                 </th>
               </tr>
             </thead>
             <tbody>
-              {docentes.map((docente) => (
+              {items.map((docente) => (
                 <tr
                   key={docente.id}
                   className="border-b border-gray-800/50 hover:bg-gray-800/50"
@@ -146,6 +179,14 @@ export default function DocentesPage() {
               ))}
             </tbody>
           </table>
+          <div className="px-6 py-3">
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              onPageChange={setPage}
+            />
+          </div>
         </div>
       )}
 
@@ -155,16 +196,17 @@ export default function DocentesPage() {
         title={editingId ? 'Editar Docente' : 'Novo Docente'}
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Nome</label>
+          <FormField label="Nome" error={errors.nome}>
             <input
               value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-purple-500 transition-colors"
-              required
+              onChange={(e) => {
+                setForm({ ...form, nome: e.target.value });
+                if (errors.nome) setErrors({});
+              }}
+              className={inputClass(errors.nome)}
               autoFocus
             />
-          </div>
+          </FormField>
           <button
             type="submit"
             disabled={saving}
@@ -184,5 +226,5 @@ export default function DocentesPage() {
         loading={deleting}
       />
     </div>
-  )
+  );
 }

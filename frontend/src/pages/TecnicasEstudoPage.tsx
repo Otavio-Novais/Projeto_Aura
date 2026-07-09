@@ -1,99 +1,115 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
-import { apiGet, apiPost, apiPut, apiDelete } from '../api'
-import { useToast } from '../contexts/useToast'
-import type { TecnicaEstudo } from '../types'
-import Modal from '../components/Modal'
-import ConfirmDialog from '../components/ConfirmDialog'
-import Spinner from '../components/Spinner'
-import EmptyState from '../components/EmptyState'
+import { useState, type FormEvent } from 'react';
+import { apiPost, apiPut, apiDelete } from '../api';
+import { useToast } from '../contexts/useToast';
+import { useApiList } from '../hooks/useApiList';
+import type { TecnicaEstudo } from '../types';
+import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import Spinner from '../components/Spinner';
+import EmptyState from '../components/EmptyState';
+import SearchInput from '../components/SearchInput';
+import SortableTh from '../components/SortableTh';
+import PaginationBar from '../components/PaginationBar';
+import FormField from '../components/FormField';
+import { inputClass } from '../components/inputClass';
 
 interface TecnicaForm {
-  nome: string
-  descricao: string
+  nome: string;
+  descricao: string;
 }
 
-const emptyForm: TecnicaForm = { nome: '', descricao: '' }
+const emptyForm: TecnicaForm = { nome: '', descricao: '' };
 
 export default function TecnicasEstudoPage() {
-  const toast = useToast()
-  const [tecnicas, setTecnicas] = useState<TecnicaEstudo[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const toast = useToast();
+  const {
+    items,
+    loading,
+    error,
+    search,
+    page,
+    totalPages,
+    totalCount,
+    ordering,
+    setSearch,
+    setPage,
+    setOrdering,
+    reload,
+  } = useApiList<TecnicaEstudo>('/tecnicas-estudo', {
+    initialOrdering: 'nome',
+  });
 
-  const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<TecnicaForm>(emptyForm)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<TecnicaForm>(emptyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<TecnicaEstudo | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const [deleteTarget, setDeleteTarget] = useState<TecnicaEstudo | null>(null)
-  const [deleting, setDeleting] = useState(false)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await apiGet<TecnicaEstudo[]>('/tecnicas-estudo')
-      setTecnicas(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    load()
-  }, [load])
-
-  function openCreate() {
-    setForm(emptyForm)
-    setEditingId(null)
-    setModalOpen(true)
+  function validate(): boolean {
+    const e: Record<string, string> = {};
+    if (!form.nome.trim()) e.nome = 'Nome é obrigatório';
+    if (!form.descricao.trim()) e.descricao = 'Descrição é obrigatória';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   }
 
-  function openEdit(tecnica: TecnicaEstudo) {
-    setForm({ nome: tecnica.nome, descricao: tecnica.descricao ?? '' })
-    setEditingId(tecnica.id)
-    setModalOpen(true)
+  function openCreate() {
+    setForm(emptyForm);
+    setErrors({});
+    setEditingId(null);
+    setModalOpen(true);
+  }
+
+  function openEdit(t: TecnicaEstudo) {
+    setForm({ nome: t.nome, descricao: t.descricao ?? '' });
+    setErrors({});
+    setEditingId(t.id);
+    setModalOpen(true);
   }
 
   async function handleSave(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault();
+    if (!validate()) return;
+    setSaving(true);
     try {
       if (editingId) {
-        await apiPut<TecnicaEstudo>(`/tecnicas-estudo/${editingId}`, form)
-        toast.addToast('Técnica atualizada com sucesso', 'success')
+        await apiPut<TecnicaEstudo>(`/tecnicas-estudo/${editingId}`, form);
+        toast.addToast('Técnica atualizada com sucesso', 'success');
       } else {
-        await apiPost<TecnicaEstudo>('/tecnicas-estudo', form)
-        toast.addToast('Técnica criada com sucesso', 'success')
+        await apiPost<TecnicaEstudo>('/tecnicas-estudo', form);
+        toast.addToast('Técnica criada com sucesso', 'success');
       }
-      setModalOpen(false)
-      await load()
+      setModalOpen(false);
+      reload();
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao salvar',
+        'error'
+      );
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   async function handleDelete() {
-    if (!deleteTarget) return
-    setDeleting(true)
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await apiDelete(`/tecnicas-estudo/${deleteTarget.id}`)
-      setDeleteTarget(null)
-      toast.addToast('Técnica excluída com sucesso', 'success')
-      await load()
+      await apiDelete(`/tecnicas-estudo/${deleteTarget.id}`);
+      setDeleteTarget(null);
+      toast.addToast('Técnica excluída com sucesso', 'success');
+      reload();
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao excluir',
+        'error'
+      );
     } finally {
-      setDeleting(false)
+      setDeleting(false);
     }
   }
-
-  if (loading) return <Spinner />
-  if (error) return <p className="text-red-400">{error}</p>
 
   return (
     <div>
@@ -107,16 +123,38 @@ export default function TecnicasEstudoPage() {
         </button>
       </div>
 
-      {tecnicas.length === 0 ? (
-        <EmptyState message="Nenhuma técnica cadastrada." />
+      <div className="mb-4 max-w-sm">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar técnicas..."
+        />
+      </div>
+
+      {loading ? (
+        <Spinner />
+      ) : error ? (
+        <p className="text-red-400">{error}</p>
+      ) : items.length === 0 ? (
+        <EmptyState
+          message={
+            search
+              ? 'Nenhuma técnica encontrada.'
+              : 'Nenhuma técnica cadastrada.'
+          }
+        />
       ) : (
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-800">
-                <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                <SortableTh
+                  field="nome"
+                  ordering={ordering}
+                  onToggle={setOrdering}
+                >
                   Nome
-                </th>
+                </SortableTh>
                 <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                   Descrição
                 </th>
@@ -126,7 +164,7 @@ export default function TecnicasEstudoPage() {
               </tr>
             </thead>
             <tbody>
-              {tecnicas.map((t) => (
+              {items.map((t) => (
                 <tr
                   key={t.id}
                   className="border-b border-gray-800/50 hover:bg-gray-800/50"
@@ -153,6 +191,14 @@ export default function TecnicasEstudoPage() {
               ))}
             </tbody>
           </table>
+          <div className="px-6 py-3">
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              onPageChange={setPage}
+            />
+          </div>
         </div>
       )}
 
@@ -162,28 +208,28 @@ export default function TecnicasEstudoPage() {
         title={editingId ? 'Editar Técnica' : 'Nova Técnica'}
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Nome</label>
+          <FormField label="Nome" error={errors.nome}>
             <input
               value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-purple-500 transition-colors"
-              required
+              onChange={(e) => {
+                setForm({ ...form, nome: e.target.value });
+                if (errors.nome) setErrors({});
+              }}
+              className={inputClass(errors.nome)}
               autoFocus
             />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">
-              Descrição
-            </label>
+          </FormField>
+          <FormField label="Descrição" error={errors.descricao}>
             <textarea
               value={form.descricao}
-              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-purple-500 transition-colors resize-none"
+              onChange={(e) => {
+                setForm({ ...form, descricao: e.target.value });
+                if (errors.descricao) setErrors({});
+              }}
+              className={`${inputClass(errors.descricao)} resize-none`}
               rows={3}
-              required
             />
-          </div>
+          </FormField>
           <button
             type="submit"
             disabled={saving}
@@ -203,5 +249,5 @@ export default function TecnicasEstudoPage() {
         loading={deleting}
       />
     </div>
-  )
+  );
 }

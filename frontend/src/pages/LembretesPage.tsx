@@ -1,17 +1,21 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
-import { apiGet, apiPost, apiPut, apiDelete } from '../api'
-import { useToast } from '../contexts/useToast'
-import type { Lembrete, Avaliacao, Materia } from '../types'
-import Modal from '../components/Modal'
-import ConfirmDialog from '../components/ConfirmDialog'
-import Spinner from '../components/Spinner'
-import EmptyState from '../components/EmptyState'
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { apiGet, apiPost, apiPut, apiDelete } from '../api';
+import { useToast } from '../contexts/useToast';
+import { useApiList } from '../hooks/useApiList';
+import type { Lembrete, Avaliacao, Materia, PaginatedResponse } from '../types';
+import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import Spinner from '../components/Spinner';
+import EmptyState from '../components/EmptyState';
+import SearchInput from '../components/SearchInput';
+import SortableTh from '../components/SortableTh';
+import PaginationBar from '../components/PaginationBar';
 
 interface LembreteForm {
-  nome: string
-  descricao: string
-  avaliacao_id: number | ''
-  data_lembrete: string
+  nome: string;
+  descricao: string;
+  avaliacao_id: number | '';
+  data_lembrete: string;
 }
 
 const emptyForm: LembreteForm = {
@@ -19,58 +23,65 @@ const emptyForm: LembreteForm = {
   descricao: '',
   avaliacao_id: '',
   data_lembrete: '',
-}
+};
 
 export default function LembretesPage() {
-  const toast = useToast()
-  const [lembretes, setLembretes] = useState<Lembrete[]>([])
-  const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([])
-  const [materias, setMaterias] = useState<Materia[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const toast = useToast();
+  const {
+    items,
+    loading,
+    error,
+    search,
+    page,
+    totalPages,
+    totalCount,
+    ordering,
+    setSearch,
+    setPage,
+    setOrdering,
+    reload,
+  } = useApiList<Lembrete>('/lembretes', { initialOrdering: 'nome' });
 
-  const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<LembreteForm>(emptyForm)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
+  const [materias, setMaterias] = useState<Materia[]>([]);
 
-  const [deleteTarget, setDeleteTarget] = useState<Lembrete | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<LembreteForm>(emptyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Lembrete | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const getAvaliacaoLabel = (avaliacaoId: number) => {
-    const av = avaliacoes.find((a) => a.id === avaliacaoId)
-    if (!av) return `Avaliação #${avaliacaoId}`
-    const mat = materias.find((m) => m.id === av.materia)
-    return mat ? `${av.nome} (${mat.nome})` : av.nome
-  }
+  const getAvaliacaoLabel = (avId: number) => {
+    const av = avaliacoes.find((a) => a.id === avId);
+    if (!av) return `#${avId}`;
+    const mat = materias.find((m) => m.id === av.materia);
+    return mat ? `${av.nome} (${mat.nome})` : av.nome;
+  };
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+  const loadRefs = useCallback(async () => {
     try {
-      const [lem, av, mat] = await Promise.all([
-        apiGet<Lembrete[]>('/lembretes'),
-        apiGet<Avaliacao[]>('/avaliacoes'),
-        apiGet<Materia[]>('/materias'),
-      ])
-      setLembretes(lem)
-      setAvaliacoes(av)
-      setMaterias(mat)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar')
-    } finally {
-      setLoading(false)
+      const [av, mat] = await Promise.all([
+        apiGet<PaginatedResponse<Avaliacao>>(
+          '/avaliacoes?page=1&page_size=9999'
+        ),
+        apiGet<PaginatedResponse<Materia>>('/materias?page=1&page_size=9999'),
+      ]);
+      setAvaliacoes(av.items);
+      setMaterias(mat.items);
+    } catch {
+      /* silent */
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    load()
-  }, [load])
+    loadRefs();
+  }, [loadRefs]);
 
   function openCreate() {
-    setForm(emptyForm)
-    setEditingId(null)
-    setModalOpen(true)
+    setForm(emptyForm);
+    setEditingId(null);
+    setModalOpen(true);
   }
 
   function openEdit(l: Lembrete) {
@@ -79,54 +90,57 @@ export default function LembretesPage() {
       descricao: l.descricao ?? '',
       avaliacao_id: l.avaliacao,
       data_lembrete: l.data_lembrete,
-    })
-    setEditingId(l.id)
-    setModalOpen(true)
+    });
+    setEditingId(l.id);
+    setModalOpen(true);
   }
 
   async function handleSave(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault();
+    setSaving(true);
     try {
       const payload = {
         nome: form.nome,
         descricao: form.descricao,
         avaliacao_id: Number(form.avaliacao_id),
         data_lembrete: form.data_lembrete,
-      }
+      };
       if (editingId) {
-        await apiPut<Lembrete>(`/lembretes/${editingId}`, payload)
-        toast.addToast('Lembrete atualizado com sucesso', 'success')
+        await apiPut<Lembrete>(`/lembretes/${editingId}`, payload);
+        toast.addToast('Lembrete atualizado com sucesso', 'success');
       } else {
-        await apiPost<Lembrete>('/lembretes', payload)
-        toast.addToast('Lembrete criado com sucesso', 'success')
+        await apiPost<Lembrete>('/lembretes', payload);
+        toast.addToast('Lembrete criado com sucesso', 'success');
       }
-      setModalOpen(false)
-      await load()
+      setModalOpen(false);
+      reload();
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao salvar',
+        'error'
+      );
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   async function handleDelete() {
-    if (!deleteTarget) return
-    setDeleting(true)
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await apiDelete(`/lembretes/${deleteTarget.id}`)
-      setDeleteTarget(null)
-      toast.addToast('Lembrete excluído com sucesso', 'success')
-      await load()
+      await apiDelete(`/lembretes/${deleteTarget.id}`);
+      setDeleteTarget(null);
+      toast.addToast('Lembrete excluído com sucesso', 'success');
+      reload();
     } catch (err) {
-      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
+      toast.addToast(
+        err instanceof Error ? err.message : 'Erro ao excluir',
+        'error'
+      );
     } finally {
-      setDeleting(false)
+      setDeleting(false);
     }
   }
-
-  if (loading) return <Spinner />
-  if (error) return <p className="text-red-400">{error}</p>
 
   return (
     <div>
@@ -140,29 +154,55 @@ export default function LembretesPage() {
         </button>
       </div>
 
-      {lembretes.length === 0 ? (
-        <EmptyState message="Nenhum lembrete cadastrado." />
+      <div className="mb-4 max-w-sm">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar lembretes..."
+        />
+      </div>
+
+      {loading ? (
+        <Spinner />
+      ) : error ? (
+        <p className="text-red-400">{error}</p>
+      ) : items.length === 0 ? (
+        <EmptyState
+          message={
+            search
+              ? 'Nenhum lembrete encontrado.'
+              : 'Nenhum lembrete cadastrado.'
+          }
+        />
       ) : (
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-800">
-                <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                <SortableTh
+                  field="nome"
+                  ordering={ordering}
+                  onToggle={setOrdering}
+                >
                   Nome
-                </th>
+                </SortableTh>
                 <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                   Avaliação
                 </th>
-                <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                <SortableTh
+                  field="data_lembrete"
+                  ordering={ordering}
+                  onToggle={setOrdering}
+                >
                   Data
-                </th>
+                </SortableTh>
                 <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                   Ações
                 </th>
               </tr>
             </thead>
             <tbody>
-              {lembretes.map((l) => (
+              {items.map((l) => (
                 <tr
                   key={l.id}
                   className="border-b border-gray-800/50 hover:bg-gray-800/50"
@@ -192,6 +232,14 @@ export default function LembretesPage() {
               ))}
             </tbody>
           </table>
+          <div className="px-6 py-3">
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              onPageChange={setPage}
+            />
+          </div>
         </div>
       )}
 
@@ -223,16 +271,12 @@ export default function LembretesPage() {
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-purple-500 transition-colors"
               required
             >
-              <option value="">Selecione uma avaliação</option>
-              {avaliacoes.map((a) => {
-                const mat = materias.find((m) => m.id === a.materia)
-                const label = mat ? `${a.nome} (${mat.nome})` : a.nome
-                return (
-                  <option key={a.id} value={a.id}>
-                    {label}
-                  </option>
-                )
-              })}
+              <option value="">Selecione</option>
+              {avaliacoes.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {getAvaliacaoLabel(a.id)}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -280,5 +324,5 @@ export default function LembretesPage() {
         loading={deleting}
       />
     </div>
-  )
+  );
 }

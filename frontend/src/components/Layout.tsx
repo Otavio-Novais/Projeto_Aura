@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/useAuth'
+import { useState, useCallback } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/useAuth';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: '📊' },
@@ -12,20 +12,20 @@ const navItems = [
   { to: '/faltas', label: 'Faltas', icon: '❌' },
   { to: '/lembretes', label: 'Lembretes', icon: '🔔' },
   { to: '/tecnicas-estudo', label: 'Técnicas', icon: '🧠' },
-]
+];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-  const [loggingOut, setLoggingOut] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const closeSidebar = useCallback(() => setSidebarOpen(false), [])
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   async function handleLogout() {
-    setLoggingOut(true)
-    await logout()
-    navigate('/login')
+    setLoggingOut(true);
+    await logout();
+    navigate('/login');
   }
 
   const sidebarContent = (
@@ -85,7 +85,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     </>
-  )
+  );
 
   return (
     <div className="flex h-screen">
@@ -115,12 +115,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             className="text-gray-400 hover:text-gray-200 p-1"
             aria-label="Abrir menu"
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
               <path d="M2 4.5A.5.5 0 012.5 4h15a.5.5 0 010 1h-15a.5.5 0 01-.5-.5zm0 5a.5.5 0 01.5-.5h15a.5.5 0 010 1h-15a.5.5 0 01-.5-.5zm0 5a.5.5 0 01.5-.5h15a.5.5 0 010 1h-15a.5.5 0 01-.5-.5z" />
             </svg>
           </button>
@@ -132,5 +127,5 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
     </div>
-  )
+  );
 }

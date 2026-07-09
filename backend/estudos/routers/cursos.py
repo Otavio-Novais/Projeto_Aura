@@ -1,4 +1,5 @@
-from ninja import Router
+from ninja import Router, Query
+from ninja.pagination import paginate, PageNumberPagination
 from ninja.security import django_auth
 from django.shortcuts import get_object_or_404
 from typing import List
@@ -7,15 +8,25 @@ from ..models import Curso
 
 router = Router(tags=["Cursos"])
 
-# Crud para cursos
+
 @router.get("", response=List[CursoSchema], auth=django_auth)
-def listar_cursos(request):
-    return Curso.objects.filter(usuario=request.user)
+@paginate(PageNumberPagination, page_size=20)
+def listar_cursos(
+    request,
+    search: str | None = Query(None),
+    ordering: str = "nome",
+):
+    qs = Curso.objects.filter(usuario=request.user)
+    if search:
+        qs = qs.filter(nome__icontains=search)
+    return qs.order_by(ordering)
+
 
 @router.post("", response=CursoSchema, auth=django_auth)
 def criar_curso(request, payload: CursoIn):
     curso = Curso.objects.create(**payload.model_dump(), usuario=request.user)
     return curso
+
 
 @router.put("/{curso_id}", response=CursoSchema, auth=django_auth)
 def atualizar_curso(request, curso_id: int, payload: CursoIn):
@@ -24,6 +35,7 @@ def atualizar_curso(request, curso_id: int, payload: CursoIn):
         setattr(curso, attr, value)
     curso.save()
     return curso
+
 
 @router.delete("/{curso_id}", auth=django_auth)
 def deletar_curso(request, curso_id: int):

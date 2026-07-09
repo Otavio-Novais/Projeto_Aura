@@ -1,5 +1,5 @@
 interface EmptyStateProps {
-  message?: string
+  message?: string;
 }
 
 export default function EmptyState({
@@ -10,5 +10,5 @@ export default function EmptyState({
       <span className="text-4xl mb-3">📭</span>
       <p className="text-sm">{message}</p>
     </div>
-  )
+  );
 }
