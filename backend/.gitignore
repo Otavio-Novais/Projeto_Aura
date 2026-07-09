@@ -7,13 +7,26 @@ __pycache__/
 
 # Ignora o ambiente virtual (O Peso)
 venv/
+.venv/
 env/
+.conda/
 
 # Ignora o banco de dados local (O Segredo/Lixo)
 db.sqlite3
 
 # Ignora arquivos de variáveis de ambiente (Senhas locais)
 .env
+
+# Ignora distribuição e build
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Ignora cache de testes
+.pytest_cache/
+htmlcov/
+.coverage
 
 # ========================
 # SISTEMAS OPERACIONAIS

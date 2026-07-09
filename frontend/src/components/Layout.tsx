@@ -1,4 +1,6 @@
-import { NavLink } from 'react-router-dom'
+import { useState } from 'react'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/useAuth'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: '📊' },
@@ -13,6 +15,16 @@ const navItems = [
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  async function handleLogout() {
+    setLoggingOut(true)
+    await logout()
+    navigate('/login')
+  }
+
   return (
     <div className="flex h-screen">
       <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col">
@@ -41,10 +53,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-gray-800">
-          <p className="text-xs text-gray-600 text-center">
-            Projeto Aura v0.1.0
-          </p>
+        <div className="border-t border-gray-800">
+          <div className="p-4 border-b border-gray-800">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-purple-600/30 rounded-full flex items-center justify-center text-sm font-medium text-purple-400">
+                {user?.username.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-300 truncate">
+                  {user?.username}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {user?.email || 'Sem email'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-3">
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <span>{loggingOut ? 'Saindo...' : 'Sair'}</span>
+            </button>
+            <p className="text-xs text-gray-600 text-center mt-2">
+              Projeto Aura v0.1.0
+            </p>
+          </div>
         </div>
       </aside>
 

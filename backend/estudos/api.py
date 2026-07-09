@@ -1,3 +1,4 @@
+from .routers.auth import router as auth_router
 from .routers.cursos import router as cursos_router
 from .routers.materias import router as materias_router
 from .routers.faltas import router as faltas_router
@@ -15,6 +16,7 @@ api = NinjaAPI(
     version="1.0.0"
 )
 
+api.add_router("/auth", auth_router)
 api.add_router("/cursos", cursos_router)
 api.add_router("/materias", materias_router)
 api.add_router("", faltas_router)

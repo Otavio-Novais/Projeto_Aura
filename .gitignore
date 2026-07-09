@@ -1,1 +1,16 @@
-.vscode/
+# ========================
+# SISTEMA
+# ========================
+.DS_Store
+Thumbs.db
+*.log
+
+# ========================
+# EDITOR/IDE
+# ========================
+.idea/
+*.swp
+*.swo
+*~
+.vscode/*
+!/frontend/.vscode/extensions.json
