@@ -1,6 +1,8 @@
 import { Routes, Route, Outlet } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { ToastProvider } from './contexts/ToastContext'
 import ProtectedRoute from './components/ProtectedRoute'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -18,7 +20,9 @@ function AppLayout() {
   return (
     <ProtectedRoute>
       <Layout>
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </Layout>
     </ProtectedRoute>
   )
@@ -27,22 +31,24 @@ function AppLayout() {
 export default function App() {
   return (
     <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+      <ToastProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-        <Route element={<AppLayout />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="/cursos" element={<CursosPage />} />
-          <Route path="/docentes" element={<DocentesPage />} />
-          <Route path="/materias" element={<MateriasPage />} />
-          <Route path="/avaliacoes" element={<AvaliacoesPage />} />
-          <Route path="/topicos" element={<TopicosPage />} />
-          <Route path="/faltas" element={<FaltasPage />} />
-          <Route path="/lembretes" element={<LembretesPage />} />
-          <Route path="/tecnicas-estudo" element={<TecnicasEstudoPage />} />
-        </Route>
-      </Routes>
+          <Route element={<AppLayout />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="/cursos" element={<CursosPage />} />
+            <Route path="/docentes" element={<DocentesPage />} />
+            <Route path="/materias" element={<MateriasPage />} />
+            <Route path="/avaliacoes" element={<AvaliacoesPage />} />
+            <Route path="/topicos" element={<TopicosPage />} />
+            <Route path="/faltas" element={<FaltasPage />} />
+            <Route path="/lembretes" element={<LembretesPage />} />
+            <Route path="/tecnicas-estudo" element={<TecnicasEstudoPage />} />
+          </Route>
+        </Routes>
+      </ToastProvider>
     </AuthProvider>
   )
 }

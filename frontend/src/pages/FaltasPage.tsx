@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
+import { useToast } from '../contexts/useToast'
 import type { Falta, Materia } from '../types'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -14,6 +15,7 @@ interface FaltaForm {
 const emptyForm: FaltaForm = { materia: '', quantidade: 1 }
 
 export default function FaltasPage() {
+  const toast = useToast()
   const [faltas, setFaltas] = useState<Falta[]>([])
   const [materias, setMaterias] = useState<Materia[]>([])
   const [selectedMateriaId, setSelectedMateriaId] = useState<number | null>(null)
@@ -87,15 +89,17 @@ export default function FaltasPage() {
       const payload = { materia: materiaId }
       if (editingId) {
         await apiPut<Falta>(`/faltas/${editingId}`, payload)
+        toast.addToast('Falta atualizada com sucesso', 'success')
       } else {
         await apiPost<Falta>(`/materias/${materiaId}/faltas`, payload)
+        toast.addToast('Falta registrada com sucesso', 'success')
       }
       setModalOpen(false)
       if (materiaId === selectedMateriaId) {
         await loadFaltas(materiaId)
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao salvar')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
     } finally {
       setSaving(false)
     }
@@ -107,11 +111,12 @@ export default function FaltasPage() {
     try {
       await apiDelete(`/faltas/${deleteTarget.id}`)
       setDeleteTarget(null)
+      toast.addToast('Falta excluída com sucesso', 'success')
       if (selectedMateriaId) {
         await loadFaltas(selectedMateriaId)
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao excluir')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
     } finally {
       setDeleting(false)
     }

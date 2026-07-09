@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
+import { useToast } from '../contexts/useToast'
 import type { Avaliacao, Materia, TipoAvaliacao } from '../types'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -29,6 +30,7 @@ const emptyForm: AvaliacaoForm = {
 }
 
 export default function AvaliacoesPage() {
+  const toast = useToast()
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([])
   const [materias, setMaterias] = useState<Materia[]>([])
   const [cursosList, setCursosList] = useState<Record<number, string>>({})
@@ -111,13 +113,15 @@ export default function AvaliacoesPage() {
       }
       if (editingId) {
         await apiPut<Avaliacao>(`/avaliacoes/${editingId}`, payload)
+        toast.addToast('Avaliação atualizada com sucesso', 'success')
       } else {
         await apiPost<Avaliacao>('/avaliacoes', payload)
+        toast.addToast('Avaliação criada com sucesso', 'success')
       }
       setModalOpen(false)
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao salvar')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
     } finally {
       setSaving(false)
     }
@@ -129,9 +133,10 @@ export default function AvaliacoesPage() {
     try {
       await apiDelete(`/avaliacoes/${deleteTarget.id}`)
       setDeleteTarget(null)
+      toast.addToast('Avaliação excluída com sucesso', 'success')
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao excluir')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
     } finally {
       setDeleting(false)
     }

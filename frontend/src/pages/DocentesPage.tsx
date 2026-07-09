@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
+import { useToast } from '../contexts/useToast'
 import type { Docente } from '../types'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -13,6 +14,7 @@ interface DocenteForm {
 const emptyForm: DocenteForm = { nome: '' }
 
 export default function DocentesPage() {
+  const toast = useToast()
   const [docentes, setDocentes] = useState<Docente[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -60,13 +62,15 @@ export default function DocentesPage() {
     try {
       if (editingId) {
         await apiPut<Docente>(`/docentes/${editingId}`, form)
+        toast.addToast('Docente atualizado com sucesso', 'success')
       } else {
         await apiPost<Docente>('/docentes', form)
+        toast.addToast('Docente criado com sucesso', 'success')
       }
       setModalOpen(false)
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao salvar')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
     } finally {
       setSaving(false)
     }
@@ -78,9 +82,10 @@ export default function DocentesPage() {
     try {
       await apiDelete(`/docentes/${deleteTarget.id}`)
       setDeleteTarget(null)
+      toast.addToast('Docente excluído com sucesso', 'success')
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao excluir')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
     } finally {
       setDeleting(false)
     }

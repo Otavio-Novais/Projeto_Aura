@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
+import { useToast } from '../contexts/useToast'
 import type { Materia, Curso, Docente } from '../types'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -15,6 +16,7 @@ interface MateriaForm {
 const emptyForm: MateriaForm = { nome: '', curso: '', docente: '' }
 
 export default function MateriasPage() {
+  const toast = useToast()
   const [materias, setMaterias] = useState<Materia[]>([])
   const [cursos, setCursos] = useState<Curso[]>([])
   const [docentes, setDocentes] = useState<Docente[]>([])
@@ -81,13 +83,15 @@ export default function MateriasPage() {
       const payload = { nome: form.nome, curso: Number(form.curso), docente: Number(form.docente) }
       if (editingId) {
         await apiPut<Materia>(`/materias/${editingId}`, payload)
+        toast.addToast('Matéria atualizada com sucesso', 'success')
       } else {
         await apiPost<Materia>('/materias', payload)
+        toast.addToast('Matéria criada com sucesso', 'success')
       }
       setModalOpen(false)
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao salvar')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
     } finally {
       setSaving(false)
     }
@@ -99,9 +103,10 @@ export default function MateriasPage() {
     try {
       await apiDelete(`/materias/${deleteTarget.id}`)
       setDeleteTarget(null)
+      toast.addToast('Matéria excluída com sucesso', 'success')
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao excluir')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
     } finally {
       setDeleting(false)
     }

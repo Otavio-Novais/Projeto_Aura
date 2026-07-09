@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
+import { useToast } from '../contexts/useToast'
 import type { Lembrete, Avaliacao, Materia } from '../types'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -21,6 +22,7 @@ const emptyForm: LembreteForm = {
 }
 
 export default function LembretesPage() {
+  const toast = useToast()
   const [lembretes, setLembretes] = useState<Lembrete[]>([])
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([])
   const [materias, setMaterias] = useState<Materia[]>([])
@@ -94,13 +96,15 @@ export default function LembretesPage() {
       }
       if (editingId) {
         await apiPut<Lembrete>(`/lembretes/${editingId}`, payload)
+        toast.addToast('Lembrete atualizado com sucesso', 'success')
       } else {
         await apiPost<Lembrete>('/lembretes', payload)
+        toast.addToast('Lembrete criado com sucesso', 'success')
       }
       setModalOpen(false)
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao salvar')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
     } finally {
       setSaving(false)
     }
@@ -112,9 +116,10 @@ export default function LembretesPage() {
     try {
       await apiDelete(`/lembretes/${deleteTarget.id}`)
       setDeleteTarget(null)
+      toast.addToast('Lembrete excluído com sucesso', 'success')
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao excluir')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
     } finally {
       setDeleting(false)
     }

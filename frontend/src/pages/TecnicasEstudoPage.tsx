@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
+import { useToast } from '../contexts/useToast'
 import type { TecnicaEstudo } from '../types'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -14,6 +15,7 @@ interface TecnicaForm {
 const emptyForm: TecnicaForm = { nome: '', descricao: '' }
 
 export default function TecnicasEstudoPage() {
+  const toast = useToast()
   const [tecnicas, setTecnicas] = useState<TecnicaEstudo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -61,13 +63,15 @@ export default function TecnicasEstudoPage() {
     try {
       if (editingId) {
         await apiPut<TecnicaEstudo>(`/tecnicas-estudo/${editingId}`, form)
+        toast.addToast('Técnica atualizada com sucesso', 'success')
       } else {
         await apiPost<TecnicaEstudo>('/tecnicas-estudo', form)
+        toast.addToast('Técnica criada com sucesso', 'success')
       }
       setModalOpen(false)
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao salvar')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
     } finally {
       setSaving(false)
     }
@@ -79,9 +83,10 @@ export default function TecnicasEstudoPage() {
     try {
       await apiDelete(`/tecnicas-estudo/${deleteTarget.id}`)
       setDeleteTarget(null)
+      toast.addToast('Técnica excluída com sucesso', 'success')
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao excluir')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
     } finally {
       setDeleting(false)
     }

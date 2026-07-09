@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
+import { useToast } from '../contexts/useToast'
 import type { Curso } from '../types'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -13,6 +14,7 @@ interface CursoForm {
 const emptyForm: CursoForm = { nome: '' }
 
 export default function CursosPage() {
+  const toast = useToast()
   const [cursos, setCursos] = useState<Curso[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -60,13 +62,15 @@ export default function CursosPage() {
     try {
       if (editingId) {
         await apiPut<Curso>(`/cursos/${editingId}`, form)
+        toast.addToast('Curso atualizado com sucesso', 'success')
       } else {
         await apiPost<Curso>('/cursos', form)
+        toast.addToast('Curso criado com sucesso', 'success')
       }
       setModalOpen(false)
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao salvar')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
     } finally {
       setSaving(false)
     }
@@ -78,9 +82,10 @@ export default function CursosPage() {
     try {
       await apiDelete(`/cursos/${deleteTarget.id}`)
       setDeleteTarget(null)
+      toast.addToast('Curso excluído com sucesso', 'success')
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao excluir')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
     } finally {
       setDeleting(false)
     }

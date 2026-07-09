@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
+import { useToast } from '../contexts/useToast'
 import type { Topico, Materia, TecnicaEstudo } from '../types'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -29,6 +30,7 @@ const emptyForm: TopicoForm = {
 }
 
 export default function TopicosPage() {
+  const toast = useToast()
   const [topicos, setTopicos] = useState<Topico[]>([])
   const [materias, setMaterias] = useState<Materia[]>([])
   const [tecnicas, setTecnicas] = useState<TecnicaEstudo[]>([])
@@ -107,13 +109,15 @@ export default function TopicosPage() {
       }
       if (editingId) {
         await apiPut<Topico>(`/topicos/${editingId}`, payload)
+        toast.addToast('Tópico atualizado com sucesso', 'success')
       } else {
         await apiPost<Topico>('/topicos', payload)
+        toast.addToast('Tópico criado com sucesso', 'success')
       }
       setModalOpen(false)
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao salvar')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao salvar', 'error')
     } finally {
       setSaving(false)
     }
@@ -125,9 +129,10 @@ export default function TopicosPage() {
     try {
       await apiDelete(`/topicos/${deleteTarget.id}`)
       setDeleteTarget(null)
+      toast.addToast('Tópico excluído com sucesso', 'success')
       await load()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao excluir')
+      toast.addToast(err instanceof Error ? err.message : 'Erro ao excluir', 'error')
     } finally {
       setDeleting(false)
     }
