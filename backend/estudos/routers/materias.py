@@ -25,15 +25,20 @@ def listar_materias(
 @router.post("", response=MateriaSchema, auth=django_auth)
 def criar_materia(request, payload: MateriaIn):
     get_object_or_404(Curso, id=payload.curso, usuario=request.user)
-    materia = Materia.objects.create(**payload.model_dump())
+    materia = Materia.objects.create(
+        nome=payload.nome,
+        curso_id=payload.curso,
+        docente_id=payload.docente,
+    )
     return materia
 
 
 @router.put("/{materia_id}", response=MateriaSchema, auth=django_auth)
 def atualizar_materia(request, materia_id: int, payload: MateriaIn):
     materia = get_object_or_404(Materia, id=materia_id, curso__usuario=request.user)
-    for attr, value in payload.model_dump().items():
-        setattr(materia, attr, value)
+    materia.nome = payload.nome
+    materia.curso_id = payload.curso
+    materia.docente_id = payload.docente
     materia.save()
     return materia
 
