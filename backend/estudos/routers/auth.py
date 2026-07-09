@@ -28,6 +28,15 @@ class ErrorOut(Schema):
     detail: str
 
 
+class UpdateProfileIn(Schema):
+    email: str | None = None
+
+
+class ChangePasswordIn(Schema):
+    current_password: str
+    new_password: str
+
+
 @router.post("/login", response={200: UserOut, 401: ErrorOut})
 def login_view(request, payload: LoginIn):
     user = authenticate(request, username=payload.username, password=payload.password)
@@ -78,3 +87,26 @@ def register(request, payload: RegisterIn):
         }
     except IntegrityError:
         return 400, {"detail": "Erro ao criar usuário"}
+
+
+@router.put("/profile", auth=django_auth, response={200: UserOut, 400: ErrorOut})
+def update_profile(request, payload: UpdateProfileIn):
+    if payload.email is not None:
+        request.user.email = payload.email
+        request.user.save()
+    return {
+        "id": request.user.id,
+        "username": request.user.username,
+        "email": request.user.email,
+    }
+
+
+@router.post("/change-password", auth=django_auth, response={200: ErrorOut, 400: ErrorOut})
+def change_password(request, payload: ChangePasswordIn):
+    if not request.user.check_password(payload.current_password):
+        return 400, {"detail": "Senha atual incorreta"}
+    if len(payload.new_password) < 6:
+        return 400, {"detail": "Nova senha deve ter pelo menos 6 caracteres"}
+    request.user.set_password(payload.new_password)
+    request.user.save()
+    return {"detail": "Senha alterada com sucesso"}

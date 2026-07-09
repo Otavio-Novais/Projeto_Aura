@@ -14,7 +14,11 @@ import AvaliacoesPage from './pages/AvaliacoesPage';
 import TopicosPage from './pages/TopicosPage';
 import FaltasPage from './pages/FaltasPage';
 import LembretesPage from './pages/LembretesPage';
-import TecnicasEstudoPage from './pages/TecnicasEstudoPage';
+import TecnicasEstudoPage from './pages/TecnicasEstudoPage'
+import ProfilePage from './pages/ProfilePage'
+import CalendarPage from './pages/CalendarPage'
+import StatsPage from './pages/StatsPage'
+import PomodoroPage from './pages/PomodoroPage';
 
 function AppLayout() {
   return (
@@ -46,6 +50,10 @@ export default function App() {
             <Route path="/faltas" element={<FaltasPage />} />
             <Route path="/lembretes" element={<LembretesPage />} />
             <Route path="/tecnicas-estudo" element={<TecnicasEstudoPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/stats" element={<StatsPage />} />
+            <Route path="/pomodoro" element={<PomodoroPage />} />
           </Route>
         </Routes>
       </ToastProvider>

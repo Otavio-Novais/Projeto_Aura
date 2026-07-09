@@ -7,6 +7,7 @@ from .routers.topicos import router as topicos_router
 from .routers.avaliacoes import router as avaliacoes_router
 from .routers.lembretes import router as lembretes_router
 from .routers.tecnicas_estudo import router as tecnicas_estudo_router
+from .routers.sessoes import router as sessoes_router
 
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
@@ -60,3 +61,4 @@ api.add_router("/topicos", topicos_router)
 api.add_router("/avaliacoes", avaliacoes_router)
 api.add_router("/lembretes", lembretes_router)
 api.add_router("/tecnicas-estudo", tecnicas_estudo_router)
+api.add_router("/sessoes", sessoes_router)

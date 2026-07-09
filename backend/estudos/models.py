@@ -84,3 +84,12 @@ class Lembrete(models.Model):
 
     def __str__(self):
         return f"{self.nome} - {self.avaliacao.materia.nome}"
+
+
+class SessaoEstudo(models.Model):
+    topico = models.ForeignKey(Topico, on_delete=models.CASCADE, related_name='sessoes_estudo')
+    duracao_minutos = models.IntegerField()
+    data = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.topico.nome} - {self.duracao_minutos}min"

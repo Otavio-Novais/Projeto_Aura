@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { apiGet, apiPost, apiPut, apiDelete } from '../api';
 import { useToast } from '../contexts/useToast';
 import { useApiList } from '../hooks/useApiList';
-import type { Materia, Curso, Docente, PaginatedResponse } from '../types';
+import type { Materia, Curso, Docente, Avaliacao, PaginatedResponse } from '../types';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Spinner from '../components/Spinner';
@@ -40,6 +40,7 @@ export default function MateriasPage() {
 
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [docentes, setDocentes] = useState<Docente[]>([]);
+  const [medias, setMedias] = useState<Record<number, string>>({});
 
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<MateriaForm>(emptyForm);
@@ -66,12 +67,26 @@ export default function MateriasPage() {
 
   const loadRefs = useCallback(async () => {
     try {
-      const [c, d] = await Promise.all([
+      const [c, d, av] = await Promise.all([
         apiGet<PaginatedResponse<Curso>>('/cursos?page=1&page_size=9999'),
         apiGet<PaginatedResponse<Docente>>('/docentes?page=1&page_size=9999'),
+        apiGet<PaginatedResponse<Avaliacao>>('/avaliacoes?page=1&page_size=9999'),
       ]);
       setCursos(c.items);
       setDocentes(d.items);
+
+      const calc: Record<number, string> = {};
+      const byMateria: Record<number, { pesoTotal: number; notaTotal: number }> = {};
+      av.items.forEach((a) => {
+        if (a.nota_obtida == null) return;
+        if (!byMateria[a.materia]) byMateria[a.materia] = { pesoTotal: 0, notaTotal: 0 };
+        byMateria[a.materia].pesoTotal += a.peso;
+        byMateria[a.materia].notaTotal += a.nota_obtida * a.peso;
+      });
+      Object.entries(byMateria).forEach(([mId, v]) => {
+        calc[Number(mId)] = v.pesoTotal > 0 ? (v.notaTotal / v.pesoTotal).toFixed(1) : '—';
+      });
+      setMedias(calc);
     } catch {
       // silent
     }
@@ -196,6 +211,9 @@ export default function MateriasPage() {
                 <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                   Docente
                 </th>
+                <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                  Média
+                </th>
                 <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                   Ações
                 </th>
@@ -213,6 +231,11 @@ export default function MateriasPage() {
                   </td>
                   <td className="px-6 py-3 text-sm text-gray-400">
                     {getDocenteNome(m.docente)}
+                  </td>
+                  <td className="px-6 py-3 text-sm">
+                    <span className={`font-mono font-medium ${medias[m.id] && Number(medias[m.id]) >= 7 ? 'text-green-400' : medias[m.id] && Number(medias[m.id]) >= 5 ? 'text-yellow-400' : 'text-red-400'}`}>
+                      {medias[m.id] || '—'}
+                    </span>
                   </td>
                   <td className="px-6 py-3 text-right">
                     <button

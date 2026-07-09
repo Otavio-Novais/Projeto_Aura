@@ -11,7 +11,11 @@ const navItems = [
   { to: '/topicos', label: 'Tópicos', icon: '📌' },
   { to: '/faltas', label: 'Faltas', icon: '❌' },
   { to: '/lembretes', label: 'Lembretes', icon: '🔔' },
+  { to: '/pomodoro', label: 'Pomodoro', icon: '⏱️' },
+  { to: '/stats', label: 'Estatísticas', icon: '📈' },
+  { to: '/calendar', label: 'Calendário', icon: '📅' },
   { to: '/tecnicas-estudo', label: 'Técnicas', icon: '🧠' },
+  { to: '/profile', label: 'Perfil', icon: '👤' },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
