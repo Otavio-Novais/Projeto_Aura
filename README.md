@@ -1,4 +1,4 @@
-# Projeto Aura — Gerenciador de Estudos
+# MeuSemestre — Gerenciador de Estudos
 
 Aplicação web para estudantes organizarem sua vida acadêmica: cursos, matérias, avaliações, faltas, tópicos de estudo, lembretes e sessões de estudo com timer Pomodoro.
 
